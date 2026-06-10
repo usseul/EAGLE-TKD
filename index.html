@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="ko"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
-
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>이글태권도장 업무일지</title>
 <style>
@@ -694,7 +695,7 @@ async function loadPINFromFirebase() {
     return;
   }
   try {
-    await loadFBScripts();
+
     if (!firebase.apps.length) firebase.initializeApp(FB_CONFIG);
     const db = firebase.database();
     const snap = await db.ref('appConfig/pin').get();
@@ -741,7 +742,7 @@ function pinConfirm() {
 }
 async function savePINToFirebase(pin) {
   try {
-    await loadFBScripts();
+
     if (!firebase.apps.length) firebase.initializeApp(FB_CONFIG);
     await firebase.database().ref('appConfig/pin').set(pin);
     fbPIN = pin;
@@ -775,14 +776,12 @@ function initPIN() {
 // FIREBASE
 // ══════════════════════════════════════════
 async function initFirebase() {
-  // Firebase 설정값이 없으면 설정 안내
   if(!FB_CONFIG.apiKey || !FB_CONFIG.databaseURL) {
     setSync(false,'⚠️ Firebase 설정 필요 — 가이드 탭을 확인하세요');
     return;
   }
   setSync(false,'Firebase 연결 중...');
   try {
-    await loadFBScripts();
     if (!firebase.apps.length) firebase.initializeApp(FB_CONFIG);
     const db = firebase.database();
     fbRef = db.ref('dojang');
@@ -807,21 +806,7 @@ async function initFirebase() {
     });
 
     isOnline = true;
-  } catch(e) { setSync(false,'오프라인 모드'); }
-}
-
-function loadFBScripts() {
-  return new Promise((res,rej)=>{
-    if(typeof firebase!=='undefined'){res();return;}
-    const s1=document.createElement('script');
-    s1.src='https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js';
-    s1.onload=()=>{
-      const s2=document.createElement('script');
-      s2.src='https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js';
-      s2.onload=res; s2.onerror=rej; document.head.appendChild(s2);
-    };
-    s1.onerror=rej; document.head.appendChild(s1);
-  });
+  } catch(e) { setSync(false,'오프라인 모드 — '+e.message); }
 }
 
 function setSync(on, txt, time) {
