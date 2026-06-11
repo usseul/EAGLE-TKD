@@ -1,0 +1,935 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>이글태권도장 업무일지</title>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700;900&display=swap');
+:root{
+  --navy:#0B1F3A;--blue:#1352A8;--sky:#E8F1FF;--teal:#0A7C6E;--teal-lt:#E4F5F3;
+  --red:#C62828;--red-lt:#FFEBEE;--orange:#E65100;--orange-lt:#FFF3E0;
+  --yellow:#F9A825;--purple:#4A148C;--gray:#546E7A;--border:#DDE4EE;
+  --bg:#EEF2F8;--text:#1A2332;--text2:#4A5A6A;--shadow:0 2px 10px rgba(11,31,58,0.10);
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;font-size:14px;}
+
+/* PIN */
+#pinScreen{position:fixed;inset:0;background:var(--navy);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:9999;padding:24px;}
+.pin-logo{font-size:52px;margin-bottom:6px;animation:float 3s ease-in-out infinite;}
+@keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-8px)}}
+.pin-brand{color:var(--yellow);font-size:22px;font-weight:900;}
+.pin-sub{color:rgba(255,255,255,0.45);font-size:12px;margin-top:4px;margin-bottom:36px;}
+.pin-label{color:rgba(255,255,255,0.6);font-size:12px;margin-bottom:14px;font-weight:500;}
+.pin-dots{display:flex;gap:14px;margin-bottom:28px;}
+.pin-dot{width:16px;height:16px;border-radius:50%;border:2px solid rgba(255,255,255,0.25);background:transparent;transition:all 0.2s;}
+.pin-dot.on{background:var(--yellow);border-color:var(--yellow);}
+@keyframes shake{0%,100%{transform:translateX(0)}20%,60%{transform:translateX(-5px)}40%,80%{transform:translateX(5px)}}
+.pin-shake{animation:shake 0.4s;}
+.pin-grid{display:grid;grid-template-columns:repeat(3,72px);gap:10px;}
+.pin-key{height:64px;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.14);border-radius:14px;color:white;font-size:22px;font-weight:700;font-family:inherit;cursor:pointer;transition:all 0.12s;}
+.pin-key:active{background:rgba(255,255,255,0.22);transform:scale(0.93);}
+.pin-key.fn{font-size:12px;color:rgba(255,255,255,0.55);}
+.pin-err{color:#FF5252;font-size:12px;min-height:16px;margin-top:12px;}
+.pin-footer{color:rgba(255,255,255,0.3);font-size:11px;margin-top:24px;text-align:center;}
+.pin-chg-btn{margin-top:10px;background:none;border:1px solid rgba(255,255,255,0.2);color:rgba(255,255,255,0.45);font-size:11px;padding:5px 14px;border-radius:20px;cursor:pointer;font-family:inherit;}
+
+/* APP */
+#app{display:none;}
+.hdr{background:var(--navy);position:sticky;top:0;z-index:200;}
+.hdr-top{display:flex;align-items:center;justify-content:space-between;padding:10px 14px 8px;}
+.brand{display:flex;align-items:center;gap:8px;}
+.brand-icon{font-size:24px;}
+.brand-name{color:white;font-size:16px;font-weight:900;}
+.brand-tag{background:var(--yellow);color:var(--navy);font-size:9px;font-weight:900;padding:2px 6px;border-radius:4px;}
+.hdr-btns{display:flex;gap:6px;}
+.hb{background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.18);color:white;padding:5px 10px;border-radius:7px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;position:relative;}
+.notif-badge{position:absolute;top:-5px;right:-5px;width:17px;height:17px;border-radius:50%;background:#FF5252;color:white;font-size:9px;font-weight:700;display:flex;align-items:center;justify-content:center;border:2px solid var(--navy);}
+.hdr-date{display:flex;align-items:center;gap:5px;background:rgba(255,255,255,0.06);border-top:1px solid rgba(255,255,255,0.07);padding:7px 14px;}
+.darr{width:30px;height:30px;border-radius:8px;background:rgba(255,255,255,0.1);border:none;color:white;font-size:13px;cursor:pointer;font-family:inherit;}
+.date-center{flex:1;text-align:center;}
+.date-txt{color:white;font-size:13px;font-weight:700;}
+.date-day{color:rgba(255,255,255,0.6);font-size:11px;margin-left:4px;}
+.today-btn{background:var(--orange);color:white;border:none;padding:5px 9px;border-radius:7px;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit;}
+.cal-btn{background:rgba(255,255,255,0.12);border:1px solid rgba(255,255,255,0.22);color:white;padding:5px 9px;border-radius:7px;font-size:13px;cursor:pointer;font-family:inherit;}
+.cal-btn.open{background:var(--yellow);color:var(--navy);}
+#inlineCal{background:rgba(0,0,0,0.2);border-top:1px solid rgba(255,255,255,0.07);padding:10px 12px 12px;display:none;}
+#inlineCal.open{display:block;}
+.ical-nav{display:flex;align-items:center;justify-content:center;gap:12px;margin-bottom:8px;}
+.ical-mth{color:white;font-size:13px;font-weight:700;}
+.ical-arr{width:26px;height:26px;border-radius:6px;background:rgba(255,255,255,0.12);border:none;color:white;font-size:12px;cursor:pointer;}
+.ical-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:2px;}
+.ical-wh{text-align:center;font-size:9px;font-weight:700;color:rgba(255,255,255,0.4);padding:3px 0;}
+.ical-wh.sun{color:#FF8A80;}.ical-wh.sat{color:#82B1FF;}
+.ical-cell{border-radius:6px;padding:3px 1px;min-height:34px;text-align:center;background:rgba(255,255,255,0.06);border:1.5px solid transparent;}
+.ical-cell.clickable{cursor:pointer;}.ical-cell.clickable:hover{background:rgba(255,255,255,0.18);}
+.ical-cell.today{border-color:var(--yellow);}
+.ical-cell.selected{background:var(--orange)!important;border-color:var(--orange);}
+.ical-cell.has-data{background:rgba(19,82,168,0.5);}
+.ical-cell.wknd{opacity:0.3;}
+.ical-cell.other{opacity:0.15;}
+.ical-dn{font-size:10px;font-weight:700;color:rgba(255,255,255,0.9);}
+.ical-cell.sun-col .ical-dn{color:#FF8A80;}.ical-cell.sat-col .ical-dn{color:#82B1FF;}
+.ical-att{font-size:9px;color:var(--yellow);font-weight:700;}
+.sync-bar{background:rgba(255,255,255,0.05);border-top:1px solid rgba(255,255,255,0.06);padding:4px 14px;display:flex;align-items:center;gap:6px;}
+.sync-dot{width:7px;height:7px;border-radius:50%;background:#4CAF50;animation:pulse 2s infinite;}
+.sync-dot.off{background:#FF5252;animation:none;}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:0.4}}
+.sync-txt{color:rgba(255,255,255,0.45);font-size:10px;flex:1;}
+.sync-time{color:rgba(255,255,255,0.28);font-size:9px;}
+
+/* VIEWS */
+.view{display:none;padding:12px 12px 80px;}
+.view.on{display:block;}
+.sec{background:white;border-radius:12px;margin-bottom:10px;overflow:hidden;box-shadow:var(--shadow);}
+.sec-hd{display:flex;align-items:center;gap:8px;padding:9px 13px;font-size:12px;font-weight:700;color:white;}
+.sec-hd.navy{background:var(--navy);}.sec-hd.blue{background:var(--blue);}.sec-hd.teal{background:var(--teal);}
+.sec-hd.orange{background:var(--orange);}.sec-hd.red{background:var(--red);}.sec-hd.purple{background:var(--purple);}
+.mstrip{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:10px;}
+.mcard{background:white;border-radius:10px;padding:8px 5px;text-align:center;box-shadow:var(--shadow);}
+.mcard.dark{background:var(--navy);}
+.mcard-lbl{font-size:9px;font-weight:700;color:var(--gray);margin-bottom:2px;}
+.mcard.dark .mcard-lbl{color:rgba(255,255,255,0.55);}
+.mcard-val{font-size:20px;font-weight:900;line-height:1;}
+.mcard.dark .mcard-val{color:white;}
+.cv-blue{color:var(--blue);}.cv-green{color:var(--teal);}.cv-red{color:var(--red);}
+.ta{width:100%;border:none;resize:none;font-family:inherit;font-size:13px;line-height:1.75;padding:12px 13px;min-height:76px;color:var(--text);background:transparent;}
+.ta:focus{outline:none;background:#FAFCFF;}
+.mgr-item{display:flex;align-items:center;gap:10px;padding:10px 13px;border-bottom:1px solid var(--border);}
+.mgr-item:last-child{border-bottom:none;}
+.mgr-lbl{font-size:12px;font-weight:700;color:var(--gray);white-space:nowrap;min-width:48px;}
+.mgr-inp{flex:1;border:none;border-bottom:1.5px solid var(--border);font-size:14px;font-family:inherit;padding:4px 6px;background:transparent;}
+.mgr-inp:focus{outline:none;border-bottom-color:var(--blue);}
+.save-btn{width:100%;background:var(--blue);color:white;border:none;padding:15px;font-size:15px;font-weight:900;font-family:inherit;border-radius:12px;cursor:pointer;margin-top:4px;transition:all 0.15s;display:flex;align-items:center;justify-content:center;gap:8px;}
+.save-btn:active{transform:scale(0.97);}
+.save-btn.ok{background:var(--teal);}
+.abs-row{display:grid;grid-template-columns:1fr 1.5fr auto;gap:6px;margin-bottom:6px;align-items:center;}
+.abs-inp{border:1.5px solid var(--border);border-radius:7px;padding:7px 8px;font-size:12px;font-family:inherit;background:#FFF8F6;width:100%;}
+.abs-del{width:28px;height:28px;border-radius:7px;background:var(--red-lt);border:none;color:var(--red);font-size:16px;cursor:pointer;}
+.abs-add-btn{margin:4px 10px 10px;background:var(--orange-lt);border:1.5px dashed var(--orange);color:var(--orange);border-radius:8px;padding:8px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;width:calc(100% - 20px);}
+
+/* MONTHLY */
+.settle-hdr{background:linear-gradient(135deg,var(--purple),#6A1B9A);color:white;padding:16px;border-radius:12px;margin-bottom:10px;text-align:center;box-shadow:var(--shadow);}
+.settle-ttl{font-size:20px;font-weight:900;margin-bottom:4px;}
+.settle-card{background:white;border-radius:10px;padding:12px 10px;box-shadow:var(--shadow);text-align:center;}
+.settle-lbl{font-size:10px;font-weight:700;color:var(--gray);margin-bottom:4px;}
+.settle-val{font-size:24px;font-weight:900;}
+
+/* NOTIF */
+#notifPanel{position:fixed;top:0;right:-100%;width:min(320px,90vw);height:100vh;background:white;z-index:500;box-shadow:-4px 0 20px rgba(0,0,0,0.15);transition:right 0.28s ease;display:flex;flex-direction:column;}
+#notifPanel.open{right:0;}
+.notif-hdr{background:var(--navy);color:white;padding:16px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;}
+.notif-close-btn{background:none;border:none;color:white;font-size:22px;cursor:pointer;}
+.notif-list{flex:1;overflow-y:auto;padding:10px;}
+.notif-item{background:#F8FAFB;border-radius:10px;padding:12px;margin-bottom:8px;border-left:3px solid var(--blue);cursor:pointer;}
+.notif-item.unread{background:var(--sky);border-left-color:var(--orange);}
+.notif-item-title{font-size:12px;font-weight:700;color:var(--navy);margin-bottom:3px;}
+.notif-item-body{font-size:11px;color:var(--text2);line-height:1.6;}
+.notif-item-time{font-size:10px;color:var(--gray);margin-top:4px;}
+.notif-empty{text-align:center;color:var(--gray);font-size:13px;padding:40px 20px;}
+.notif-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.3);z-index:499;display:none;}
+.notif-overlay.open{display:block;}
+
+/* TOAST */
+.toast{position:fixed;bottom:85px;left:50%;transform:translateX(-50%) translateY(10px);background:var(--navy);color:white;padding:10px 18px;border-radius:20px;font-size:12px;font-weight:500;opacity:0;transition:all 0.28s;z-index:8000;pointer-events:none;white-space:nowrap;}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+
+/* NAV */
+.bnav{position:fixed;bottom:0;left:0;right:0;background:white;border-top:1px solid var(--border);display:grid;grid-template-columns:repeat(5,1fr);padding:6px 0 max(8px,env(safe-area-inset-bottom));z-index:100;box-shadow:0 -4px 16px rgba(0,0,0,0.07);}
+.bni{display:flex;flex-direction:column;align-items:center;gap:2px;cursor:pointer;padding:4px;}
+.bni-icon{font-size:22px;}.bni-lbl{font-size:9px;font-weight:700;color:#90A4AE;}
+.bni.on .bni-lbl{color:var(--blue);}.bni.on .bni-icon{transform:scale(1.08);}
+
+/* VEHICLE */
+.veh-change-box{background:#FFFDE7;border:2px solid var(--yellow);border-radius:12px;margin-bottom:10px;overflow:hidden;}
+.veh-period-hdr{display:flex;align-items:center;justify-content:space-between;padding:10px 13px;cursor:pointer;}
+.veh-course-row{display:grid;grid-template-columns:52px 1fr;border-top:1px solid var(--border);}
+.veh-course-time{padding:8px 4px;text-align:center;font-size:11px;font-weight:700;}
+.veh-course-info{padding:8px 10px;}
+
+/* MODAL */
+.modal-bg{position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:600;display:flex;align-items:flex-end;justify-content:center;}
+.modal-bg.hidden{display:none;}
+.modal-box{background:white;border-radius:20px 20px 0 0;padding:20px 16px 36px;width:100%;max-width:480px;max-height:80vh;overflow-y:auto;}
+.modal-title{font-size:16px;font-weight:900;color:var(--navy);margin-bottom:6px;}
+.modal-btn{width:100%;padding:13px;border:none;border-radius:10px;font-size:14px;font-weight:700;font-family:inherit;cursor:pointer;margin-bottom:8px;}
+.modal-btn.primary{background:var(--blue);color:white;}
+.modal-btn.secondary{background:var(--bg);color:var(--text2);}
+.hidden{display:none!important;}
+</style>
+</head>
+<body>
+
+<!-- PIN -->
+<div id="pinScreen">
+  <div class="pin-logo">🥋</div>
+  <div class="pin-brand">이글태권도장</div>
+  <div class="pin-sub">일일 업무일지 시스템</div>
+  <div class="pin-label" id="pinLabel">비밀번호 4자리를 입력하세요</div>
+  <div class="pin-dots" id="pinDots">
+    <div class="pin-dot" id="pd0"></div><div class="pin-dot" id="pd1"></div>
+    <div class="pin-dot" id="pd2"></div><div class="pin-dot" id="pd3"></div>
+  </div>
+  <div class="pin-grid">
+    <button class="pin-key" onclick="pinPress('1')">1</button>
+    <button class="pin-key" onclick="pinPress('2')">2</button>
+    <button class="pin-key" onclick="pinPress('3')">3</button>
+    <button class="pin-key" onclick="pinPress('4')">4</button>
+    <button class="pin-key" onclick="pinPress('5')">5</button>
+    <button class="pin-key" onclick="pinPress('6')">6</button>
+    <button class="pin-key" onclick="pinPress('7')">7</button>
+    <button class="pin-key" onclick="pinPress('8')">8</button>
+    <button class="pin-key" onclick="pinPress('9')">9</button>
+    <button class="pin-key fn" onclick="pinDel()">지우기</button>
+    <button class="pin-key" onclick="pinPress('0')">0</button>
+    <button class="pin-key fn" onclick="pinSubmit()">확인</button>
+  </div>
+  <div class="pin-err" id="pinErr"></div>
+  <div class="pin-footer">팀원 모두 같은 비밀번호를 사용하세요</div>
+  <button class="pin-chg-btn" onclick="showPinChange()">비밀번호 변경</button>
+</div>
+
+<!-- APP -->
+<div id="app">
+  <div class="hdr">
+    <div class="hdr-top">
+      <div class="brand">
+        <span class="brand-icon">🥋</span>
+        <span class="brand-name">이글태권도</span>
+        <span class="brand-tag">업무일지</span>
+      </div>
+      <div class="hdr-btns">
+        <button class="hb" onclick="toggleNotif()">🔔<span class="notif-badge" id="notifBadge">0</span></button>
+        <button class="hb" onclick="showView('monthly')">📊</button>
+        <button class="hb" onclick="showView('guide')">❓</button>
+      </div>
+    </div>
+    <div class="hdr-date">
+      <button class="darr" onclick="moveDate(-1)">◀</button>
+      <div class="date-center">
+        <span class="date-txt" id="hdDate"></span>
+        <span class="date-day" id="hdDay"></span>
+      </div>
+      <button class="today-btn" onclick="goToday()">오늘</button>
+      <button class="darr" onclick="moveDate(1)">▶</button>
+      <button class="cal-btn" id="calBtn" onclick="toggleCal()">📅</button>
+    </div>
+    <div id="inlineCal">
+      <div class="ical-nav">
+        <button class="ical-arr" onclick="calMove(-1)">◀</button>
+        <div class="ical-mth" id="icalMth"></div>
+        <button class="ical-arr" onclick="calMove(1)">▶</button>
+      </div>
+      <div class="ical-grid">
+        <div class="ical-wh sun">일</div><div class="ical-wh">월</div><div class="ical-wh">화</div>
+        <div class="ical-wh">수</div><div class="ical-wh">목</div><div class="ical-wh">금</div>
+        <div class="ical-wh sat">토</div>
+        <div id="icalDays" style="display:contents;"></div>
+      </div>
+    </div>
+    <div class="sync-bar">
+      <div class="sync-dot off" id="syncDot"></div>
+      <span class="sync-txt" id="syncTxt">연결 중...</span>
+      <span class="sync-time" id="syncTime"></span>
+    </div>
+  </div>
+
+  <div class="notif-overlay" id="notifOverlay" onclick="toggleNotif()"></div>
+  <div id="notifPanel">
+    <div class="notif-hdr">
+      <div style="font-size:15px;font-weight:700;">🔔 알림</div>
+      <button class="notif-close-btn" onclick="toggleNotif()">×</button>
+    </div>
+    <div class="notif-list" id="notifList"><div class="notif-empty">📭 알림이 없습니다</div></div>
+    <div style="padding:10px 12px;border-top:1px solid var(--border);">
+      <button onclick="clearNotifs()" style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:9px;font-size:12px;color:var(--gray);cursor:pointer;font-family:inherit;">모두 지우기</button>
+    </div>
+  </div>
+
+  <!-- DAILY VIEW -->
+  <div class="view on" id="viewDaily">
+    <div class="mstrip">
+      <div class="mcard dark"><div class="mcard-lbl">총 원</div><div class="mcard-val" id="ms_total">0</div></div>
+      <div class="mcard"><div class="mcard-lbl">신 규</div><div class="mcard-val cv-blue" id="ms_new">0</div></div>
+      <div class="mcard"><div class="mcard-lbl">복 관</div><div class="mcard-val cv-green" id="ms_restore">0</div></div>
+      <div class="mcard"><div class="mcard-lbl">휴·퇴관</div><div class="mcard-val cv-red" id="ms_out">0</div></div>
+    </div>
+    <div class="sec"><div class="sec-hd red">🎉 이벤트 내용</div><textarea class="ta" id="taEvent" placeholder="오늘의 이벤트 내용을 입력하세요..."></textarea></div>
+    <div class="sec"><div class="sec-hd navy">💬 회의 내용</div><textarea class="ta" id="taMtg" placeholder="회의 내용을 입력하세요..."></textarea></div>
+    <div class="sec"><div class="sec-hd teal">📚 교육 내용</div><textarea class="ta" id="taEdu" placeholder="오늘의 교육 내용을 입력하세요..."></textarea></div>
+    <div class="sec">
+      <div class="sec-hd purple">🤝 상담 내용</div>
+      <div style="padding:8px 13px 2px;font-size:11px;font-weight:700;color:var(--purple);">체험 / 입관 문의</div>
+      <textarea class="ta" id="taCons1" placeholder="체험·입관 문의 내용..." style="min-height:60px;border-bottom:1px solid var(--border);"></textarea>
+      <div style="padding:8px 13px 2px;font-size:11px;font-weight:700;color:var(--purple);">교육비 / 물품 구매</div>
+      <textarea class="ta" id="taCons2" placeholder="교육비·물품 구매 내용..." style="min-height:60px;border-bottom:1px solid var(--border);"></textarea>
+      <div style="padding:8px 13px 2px;font-size:11px;font-weight:700;color:var(--purple);">기타 상담</div>
+      <textarea class="ta" id="taCons3" placeholder="기타 상담 내용..." style="min-height:60px;"></textarea>
+    </div>
+    <div class="sec">
+      <div class="sec-hd blue">📋 출석 인원 (부별)</div>
+      <div style="display:grid;grid-template-columns:repeat(6,1fr);" id="attGrid"></div>
+      <div style="background:#E8F5E9;display:grid;grid-template-columns:1fr 1fr;padding:8px 14px;border-top:1px solid #C8E6C9;">
+        <div style="font-size:12px;font-weight:700;color:var(--teal);">합계: <span id="totAtt" style="font-size:16px;">0</span>명</div>
+        <div style="font-size:12px;font-weight:700;color:var(--red);text-align:right;">결석: <span id="totAbs" style="font-size:16px;">0</span>명</div>
+      </div>
+    </div>
+    <div class="sec">
+      <div class="sec-hd orange" style="justify-content:space-between;">
+        <span>🙋 결석 인원 명단</span>
+        <span id="absBadge" style="background:rgba(255,255,255,0.25);border-radius:20px;padding:2px 10px;font-size:12px;font-weight:900;">0명</span>
+      </div>
+      <div id="absRows" style="padding:8px 10px;"></div>
+      <button class="abs-add-btn" onclick="addAbsRow()">＋ 결석자 추가</button>
+    </div>
+    <div class="sec">
+      <div class="sec-hd navy">📋 오늘 변동 명단</div>
+      <div class="mgr-item"><span class="mgr-lbl">입 관</span><input class="mgr-inp" id="mgrIn" placeholder="이름 (쉼표로 구분)"></div>
+      <div class="mgr-item"><span class="mgr-lbl">복 관</span><input class="mgr-inp" id="mgrRe" placeholder="이름 (쉼표로 구분)"></div>
+      <div class="mgr-item"><span class="mgr-lbl">휴·퇴관</span><input class="mgr-inp" id="mgrOut" placeholder="이름 (쉼표로 구분)"></div>
+    </div>
+    <button class="save-btn" id="saveBtn" onclick="saveDay()">💾 저장하기</button>
+    <div class="sec" style="margin-top:10px;">
+      <div class="sec-hd blue">➕ 이달 인원 변동 등록</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:6px;padding:12px 10px 8px;">
+        <div style="text-align:center;">
+          <div style="font-size:10px;font-weight:700;color:var(--gray);margin-bottom:5px;">기준총원</div>
+          <input type="number" id="inp_base" placeholder="0" min="0" style="width:100%;border:1.5px solid var(--border);border-radius:8px;padding:8px 4px;font-size:16px;font-weight:700;font-family:inherit;text-align:center;color:var(--navy);">
+          <div style="font-size:10px;color:var(--gray);margin-top:3px;">명</div>
+        </div>
+        <div style="text-align:center;">
+          <div style="font-size:10px;font-weight:700;color:var(--blue);margin-bottom:5px;">신 규</div>
+          <div id="disp_new" style="width:100%;border:1.5px solid var(--border);border-radius:8px;padding:8px 4px;font-size:16px;font-weight:700;text-align:center;color:var(--blue);background:#F8FBFF;">0</div>
+          <div style="font-size:10px;color:var(--gray);margin-top:3px;">명</div>
+        </div>
+        <div style="text-align:center;">
+          <div style="font-size:10px;font-weight:700;color:var(--teal);margin-bottom:5px;">복 관</div>
+          <div id="disp_restore" style="width:100%;border:1.5px solid var(--border);border-radius:8px;padding:8px 4px;font-size:16px;font-weight:700;text-align:center;color:var(--teal);background:#F8FBFF;">0</div>
+          <div style="font-size:10px;color:var(--gray);margin-top:3px;">명</div>
+        </div>
+        <div style="text-align:center;">
+          <div style="font-size:10px;font-weight:700;color:var(--red);margin-bottom:5px;">휴·퇴관</div>
+          <div id="disp_out" style="width:100%;border:1.5px solid var(--border);border-radius:8px;padding:8px 4px;font-size:16px;font-weight:700;text-align:center;color:var(--red);background:#F8FBFF;">0</div>
+          <div style="font-size:10px;color:var(--gray);margin-top:3px;">명</div>
+        </div>
+      </div>
+      <div style="padding:4px 10px 12px;"><button class="save-btn" onclick="saveMonthSetup()">📊 월별 현황 업데이트</button></div>
+    </div>
+  </div>
+
+  <!-- MONTHLY VIEW -->
+  <div class="view" id="viewMonthly">
+    <div class="settle-hdr"><div class="settle-ttl" id="settleTitle">결산</div><div style="font-size:11px;opacity:0.7;">이달의 운영 현황</div></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px;">
+      <div class="settle-card"><div class="settle-lbl">기준 총원</div><div class="settle-val cv-blue" id="s_base">0</div><div style="font-size:10px;color:var(--gray);">명</div></div>
+      <div class="settle-card"><div class="settle-lbl">현재 총원</div><div class="settle-val cv-blue" id="s_cur">0</div><div style="font-size:10px;color:var(--gray);">명</div></div>
+    </div>
+    <div class="sec">
+      <div class="sec-hd blue" style="justify-content:space-between;"><span>➕ 신규</span><span id="s_new" style="background:rgba(255,255,255,0.25);border-radius:16px;padding:2px 10px;">0명</span></div>
+      <div id="monthly_new_list" style="padding:10px 13px;font-size:13px;color:var(--text2);line-height:1.9;min-height:40px;"><span style="color:var(--gray);font-size:12px;">없음</span></div>
+    </div>
+    <div class="sec">
+      <div class="sec-hd teal" style="justify-content:space-between;"><span>🔄 복관</span><span id="s_restore" style="background:rgba(255,255,255,0.25);border-radius:16px;padding:2px 10px;">0명</span></div>
+      <div id="monthly_restore_list" style="padding:10px 13px;font-size:13px;color:var(--text2);line-height:1.9;min-height:40px;"><span style="color:var(--gray);font-size:12px;">없음</span></div>
+    </div>
+    <div class="sec">
+      <div class="sec-hd red" style="justify-content:space-between;"><span>🚪 휴·퇴관</span><span id="s_out" style="background:rgba(255,255,255,0.25);border-radius:16px;padding:2px 10px;">0명</span></div>
+      <div id="monthly_out_list" style="min-height:40px;"><div style="padding:10px 13px;font-size:12px;color:var(--gray);">없음</div></div>
+    </div>
+    <div class="sec">
+      <div class="sec-hd purple">📝 이달 특이사항</div>
+      <textarea class="ta" id="taMonthNote" placeholder="이달의 특이사항..." style="min-height:120px;"></textarea>
+      <div style="padding:0 13px 13px;"><button class="save-btn" onclick="saveMonthNote()">저장</button></div>
+    </div>
+  </div>
+
+  <!-- VEHICLE VIEW -->
+  <div class="view" id="viewVehicle">
+    <div class="veh-change-box">
+      <div class="sec-hd" style="background:var(--yellow);color:var(--navy);justify-content:space-between;">
+        <span>🚌 <span id="vehDateLbl">오늘</span> 변경사항</span>
+        <span style="font-size:10px;background:rgba(0,0,0,0.12);padding:2px 8px;border-radius:10px;">해당일만 적용</span>
+      </div>
+      <textarea class="ta" id="taVehChange" placeholder="오늘 하루만 적용되는 운행 변경사항...&#10;예) 1호차 결항 · 운행시간 변경 등" style="min-height:80px;"></textarea>
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:6px 13px 10px;">
+        <span style="font-size:11px;color:var(--orange);">📅 다음날 자동 초기화</span>
+        <button onclick="saveVehChange()" style="background:var(--yellow);color:var(--navy);border:none;border-radius:8px;padding:8px 18px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;">저장</button>
+      </div>
+    </div>
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
+      <div style="font-size:14px;font-weight:900;color:var(--navy);">🚗 <span id="vehScheduleLbl">운행표</span></div>
+    </div>
+    <div class="sec" id="veh1_sec">
+      <div class="sec-hd blue" style="justify-content:space-between;cursor:pointer;" onclick="toggleVeh(1)">
+        <span>🚌 1호차</span><span id="veh1_tog">▶</span>
+      </div>
+      <div id="veh1_body" style="display:none;">
+        <div id="veh1_routes"></div>
+        <div style="padding:8px 13px 12px;">
+          <button onclick="showVehEdit(1)" style="width:100%;background:var(--sky);border:1.5px dashed var(--blue);color:var(--blue);border-radius:8px;padding:9px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;">✏️ 운행표 수정</button>
+        </div>
+      </div>
+    </div>
+    <div class="sec" id="veh2_sec">
+      <div class="sec-hd teal" style="justify-content:space-between;cursor:pointer;" onclick="toggleVeh(2)">
+        <span>🚌 2호차</span><span id="veh2_tog">▶</span>
+      </div>
+      <div id="veh2_body" style="display:none;">
+        <div id="veh2_routes"></div>
+        <div style="padding:8px 13px 12px;">
+          <button onclick="showVehEdit(2)" style="width:100%;background:var(--teal-lt);border:1.5px dashed var(--teal);color:var(--teal);border-radius:8px;padding:9px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;">✏️ 운행표 수정</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- GUIDE VIEW -->
+  <div class="view" id="viewGuide">
+    <div class="sec"><div class="sec-hd navy">🚀 사용 방법</div>
+      <div style="padding:14px;">
+        <div style="display:flex;gap:10px;margin-bottom:12px;"><div style="width:26px;height:26px;border-radius:50%;background:var(--blue);color:white;font-size:12px;font-weight:700;flex-shrink:0;display:flex;align-items:center;justify-content:center;">1</div><div><div style="font-size:13px;font-weight:700;color:var(--navy);margin-bottom:3px;">이달 총원 입력</div><div style="font-size:12px;color:var(--text2);">매달 1일, 이달 인원 변동 등록에서 기준 총원 입력</div></div></div>
+        <div style="display:flex;gap:10px;"><div style="width:26px;height:26px;border-radius:50%;background:var(--blue);color:white;font-size:12px;font-weight:700;flex-shrink:0;display:flex;align-items:center;justify-content:center;">2</div><div><div style="font-size:13px;font-weight:700;color:var(--navy);margin-bottom:3px;">매일 업무일지 작성 후 저장</div><div style="font-size:12px;color:var(--text2);">내용 입력 후 저장하기 누르면 팀원들에게 알림 전송!</div></div></div>
+      </div>
+    </div>
+    <div class="sec"><div class="sec-hd navy">📱 홈 화면에 추가</div>
+      <div style="padding:14px;font-size:12px;color:var(--text2);line-height:1.8;">
+        <b>아이폰:</b> Safari → 공유(□↑) → 홈 화면에 추가<br>
+        <b>안드로이드:</b> Chrome → ⋮ → 홈 화면에 추가
+      </div>
+    </div>
+  </div>
+
+  <div class="bnav">
+    <div class="bni on" id="bni0" onclick="showView('daily')"><div class="bni-icon">📝</div><div class="bni-lbl">일일일지</div></div>
+    <div class="bni" id="bni1" onclick="showView('monthly')"><div class="bni-icon">📊</div><div class="bni-lbl">월별결산</div></div>
+    <div class="bni" id="bni2" onclick="showView('vehicle')"><div class="bni-icon">🚗</div><div class="bni-lbl">차량운행</div></div>
+    <div class="bni" id="bni3" onclick="toggleNotif()"><div class="bni-icon">🔔</div><div class="bni-lbl">알림</div></div>
+    <div class="bni" id="bni4" onclick="showView('guide')"><div class="bni-icon">📖</div><div class="bni-lbl">가이드</div></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<!-- 차량 수정 모달 -->
+<div class="modal-bg hidden" id="vehModal">
+  <div class="modal-box">
+    <div class="modal-title" id="vehModalTitle">운행표 수정</div>
+    <div id="vehModalBody" style="margin-bottom:12px;"></div>
+    <button id="vehModalBtn1" class="modal-btn primary" onclick="vehModalAction()">저장</button>
+    <button class="modal-btn secondary" onclick="closeVehModal()">닫기</button>
+  </div>
+</div>
+
+<script>
+// ══════════ Firebase 설정 ══════════
+const FB_CONFIG = {
+  apiKey: "AIzaSyAefhKti24wOSvuUxWaywv3hxY2jOMugl4",
+  authDomain: "eagletkd-f2c4d.firebaseapp.com",
+  databaseURL: "https://eagletkd-f2c4d-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId: "eagletkd-f2c4d",
+  storageBucket: "eagletkd-f2c4d.appspot.com",
+  messagingSenderId: "314003343123",
+  appId: "1:314003343123:web:43f5db5c416f2086e3bce6"
+};
+
+// ══════════ 전역 변수 ══════════
+const BU_LABELS = ['2:30부','3:30부','4:30부','5:40부','7:00부','8:00부'];
+const DAY_KO = ['일','월','화','수','목','금','토'];
+let db, fbRef, isOnline = false;
+let allData = {}, monthData = {};
+let curDate = new Date();
+let calDate = new Date();
+let calOpen = false;
+let notifications = [], unreadCnt = 0;
+let vehSchedule = {1:[], 2:[]};
+let vehEditCar = 1, vehEditPeriod = -1;
+const MY_ID = 'u_' + Math.random().toString(36).slice(2,8);
+
+// ══════════ PIN ══════════
+let pinBuf = '';
+const SAVED_PIN_KEY = 'eagle_pin';
+
+function getPin() { return localStorage.getItem(SAVED_PIN_KEY) || ''; }
+
+function pinPress(d) {
+  if (pinBuf.length >= 4) return;
+  pinBuf += d;
+  for (let i = 0; i < 4; i++) document.getElementById('pd'+i).classList.toggle('on', i < pinBuf.length);
+  if (pinBuf.length === 4) setTimeout(pinSubmit, 120);
+}
+
+function pinDel() {
+  pinBuf = pinBuf.slice(0, -1);
+  for (let i = 0; i < 4; i++) document.getElementById('pd'+i).classList.toggle('on', i < pinBuf.length);
+}
+
+function pinSubmit() {
+  const saved = getPin();
+  if (!saved) {
+    // 처음 설정
+    if (pinBuf.length === 4) {
+      localStorage.setItem(SAVED_PIN_KEY, pinBuf);
+      document.getElementById('pinLabel').textContent = '비밀번호가 설정되었습니다!';
+      setTimeout(startApp, 500);
+    }
+    return;
+  }
+  if (pinBuf === saved) {
+    startApp();
+  } else {
+    pinBuf = '';
+    for (let i = 0; i < 4; i++) document.getElementById('pd'+i).classList.remove('on');
+    const err = document.getElementById('pinErr');
+    err.textContent = '비밀번호가 틀렸습니다';
+    document.getElementById('pinDots').classList.add('pin-shake');
+    setTimeout(() => { err.textContent = ''; document.getElementById('pinDots').classList.remove('pin-shake'); }, 1200);
+  }
+}
+
+function showPinChange() {
+  const np = prompt('새 비밀번호 4자리를 입력하세요:');
+  if (np && /^\d{4}$/.test(np)) {
+    localStorage.setItem(SAVED_PIN_KEY, np);
+    alert('비밀번호가 변경되었습니다!');
+  } else if (np) {
+    alert('4자리 숫자를 입력해주세요');
+  }
+}
+
+// ══════════ 앱 시작 ══════════
+function startApp() {
+  document.getElementById('pinScreen').style.display = 'none';
+  document.getElementById('app').style.display = 'block';
+  buildAttGrid();
+  updateHeader();
+  renderCal();
+  initFirebase();
+}
+
+// ══════════ Firebase ══════════
+function initFirebase() {
+  try {
+    if (!firebase.apps.length) firebase.initializeApp(FB_CONFIG);
+    db = firebase.database();
+    fbRef = db.ref('dojang');
+
+    // 연결 상태
+    db.ref('.info/connected').on('value', snap => {
+      isOnline = snap.val() === true;
+      document.getElementById('syncDot').className = 'sync-dot' + (isOnline ? '' : ' off');
+      document.getElementById('syncTxt').textContent = isOnline ? '실시간 동기화 중' : '연결 끊김...';
+    });
+
+    // days 수신
+    fbRef.child('days').on('value', snap => {
+      allData = snap.val() || {};
+      loadDay();
+      updateMonthStrip();
+      renderCal();
+      document.getElementById('syncTime').textContent = new Date().toLocaleTimeString('ko-KR');
+    });
+
+    // months 수신
+    fbRef.child('months').on('value', snap => {
+      monthData = snap.val() || {};
+      updateMonthStrip();
+    });
+
+    // 알림 수신
+    fbRef.child('notifs').limitToLast(20).on('child_added', snap => {
+      const n = snap.val();
+      if (!n || n.sender === MY_ID) return;
+      addNotif({...n, key: snap.key});
+    });
+
+    // 차량 운행표 수신
+    fbRef.child('vehicle').on('value', snap => {
+      const d = snap.val() || {};
+      vehSchedule[1] = d.car1 || getDefaultSchedule();
+      vehSchedule[2] = d.car2 || getDefaultSchedule();
+      if (document.getElementById('viewVehicle').classList.contains('on')) renderVeh();
+    });
+
+  } catch(e) {
+    console.error('Firebase 오류:', e);
+    document.getElementById('syncTxt').textContent = '오프라인 모드';
+  }
+}
+
+// ══════════ 날짜 ══════════
+function dk(d) { return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+function mk(d) { return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0'); }
+
+function updateHeader() {
+  document.getElementById('hdDate').textContent = curDate.getFullYear()+'년 '+(curDate.getMonth()+1)+'월 '+curDate.getDate()+'일';
+  document.getElementById('hdDay').textContent = '('+DAY_KO[curDate.getDay()]+')';
+}
+
+function moveDate(d) {
+  curDate = new Date(curDate); curDate.setDate(curDate.getDate()+d);
+  updateHeader(); loadDay(); updateMonthStrip();
+  if (calOpen) renderCal();
+}
+
+function goToday() {
+  curDate = new Date(); updateHeader(); loadDay(); updateMonthStrip();
+  calDate = new Date(curDate);
+  if (calOpen) renderCal();
+}
+
+// ══════════ 캘린더 ══════════
+function toggleCal() {
+  calOpen = !calOpen;
+  document.getElementById('inlineCal').classList.toggle('open', calOpen);
+  document.getElementById('calBtn').classList.toggle('open', calOpen);
+  if (calOpen) { calDate = new Date(curDate); renderCal(); }
+}
+
+function calMove(d) { calDate = new Date(calDate.getFullYear(), calDate.getMonth()+d, 1); renderCal(); }
+
+function renderCal() {
+  document.getElementById('icalMth').textContent = calDate.getFullYear()+'년 '+(calDate.getMonth()+1)+'월';
+  const wrap = document.getElementById('icalDays'); wrap.innerHTML = '';
+  const y = calDate.getFullYear(), m = calDate.getMonth();
+  const first = new Date(y,m,1).getDay();
+  const last = new Date(y,m+1,0).getDate();
+  const todayStr = dk(new Date()), selStr = dk(curDate);
+  for (let i = 0; i < first; i++) { const e = document.createElement('div'); e.className='ical-cell other'; wrap.appendChild(e); }
+  for (let day = 1; day <= last; day++) {
+    const date = new Date(y,m,day), dkStr = dk(date), dow = date.getDay();
+    const wknd = dow===0||dow===6;
+    const e = document.createElement('div');
+    let cls = 'ical-cell'+(wknd?' wknd':'')+(dow===0?' sun-col':'')+(dow===6?' sat-col':'')+(dkStr===todayStr?' today':'')+(dkStr===selStr?' selected':'')+(allData[dkStr]&&!wknd?' has-data':'');
+    e.className = cls;
+    let att = '';
+    if (allData[dkStr]&&allData[dkStr].att) { let s=0; Object.values(allData[dkStr].att).forEach(v=>s+=parseInt(v)||0); if(s>0) att='<div class="ical-att">'+s+'</div>'; }
+    e.innerHTML = '<div class="ical-dn">'+day+'</div>'+att;
+    if (!wknd) { e.classList.add('clickable'); e.onclick = () => { curDate=new Date(y,m,day); updateHeader(); loadDay(); updateMonthStrip(); toggleCal(); }; }
+    wrap.appendChild(e);
+  }
+}
+
+// ══════════ 출석 그리드 ══════════
+function buildAttGrid() {
+  const g = document.getElementById('attGrid'); g.innerHTML = '';
+  BU_LABELS.forEach((lbl,i) => {
+    g.innerHTML += `<div style="text-align:center;padding:8px 4px;border-right:1px solid var(--border);"><div style="font-size:9px;font-weight:700;color:var(--gray);margin-bottom:4px;">${lbl}</div><input type="number" id="att_${i}" min="0" value="0" oninput="updateTotals()" style="width:100%;border:1.5px solid var(--border);border-radius:6px;padding:5px 2px;font-size:16px;font-weight:700;text-align:center;font-family:inherit;color:var(--blue);"></div>`;
+  });
+}
+
+function updateTotals() {
+  let tot = 0;
+  BU_LABELS.forEach((_,i) => tot += parseInt(document.getElementById('att_'+i).value)||0);
+  document.getElementById('totAtt').textContent = tot;
+  const base = getBase(mk(curDate));
+  const {newC,restC,outC} = getCounts(dk(curDate));
+  const total = base+newC+restC-outC;
+  document.getElementById('totAbs').textContent = Math.max(0, total-tot);
+}
+
+// ══════════ 총원 계산 ══════════
+function getBase(mkey) {
+  const saved = (monthData[mkey]||{}).base;
+  if (saved !== undefined && saved !== null && saved !== '') return Number(saved);
+  // 전달 총원 자동 이월
+  const [y,m2] = mkey.split('-').map(Number);
+  const prevMk = new Date(y,m2-2,1);
+  return calcTotal(prevMk.getFullYear()+'-'+String(prevMk.getMonth()+1).padStart(2,'0'), null);
+}
+
+function calcTotal(mkey, upTo) {
+  const base = (monthData[mkey]||{}).base || 0;
+  let n=0,r=0,o=0;
+  Object.keys(allData).filter(k=>k.startsWith(mkey)).forEach(k=>{
+    if (upTo && k>upTo) return;
+    const d=allData[k]||{};
+    if(d.mgrIn) n+=d.mgrIn.split(',').map(s=>s.trim()).filter(s=>s).length;
+    if(d.mgrRe) r+=d.mgrRe.split(',').map(s=>s.trim()).filter(s=>s).length;
+    if(d.mgrOut) o+=d.mgrOut.split(',').map(s=>s.trim()).filter(s=>s).length;
+  });
+  return base+n+r-o;
+}
+
+function getCounts(upTo) {
+  const mkey = upTo ? upTo.slice(0,7) : mk(curDate);
+  let newC=0,restC=0,outC=0;
+  Object.keys(allData).filter(k=>k.startsWith(mkey)).forEach(k=>{
+    if (upTo && k>upTo) return;
+    const d=allData[k]||{};
+    if(d.mgrIn) newC+=d.mgrIn.split(',').map(s=>s.trim()).filter(s=>s).length;
+    if(d.mgrRe) restC+=d.mgrRe.split(',').map(s=>s.trim()).filter(s=>s).length;
+    if(d.mgrOut) outC+=d.mgrOut.split(',').map(s=>s.trim()).filter(s=>s).length;
+  });
+  return {newC,restC,outC};
+}
+
+function updateMonthStrip() {
+  const mkey = mk(curDate);
+  const base = getBase(mkey);
+  const {newC,restC,outC} = getCounts(dk(curDate));
+  const cur = base+newC+restC-outC;
+  document.getElementById('ms_total').textContent = cur;
+  document.getElementById('ms_new').textContent = newC;
+  document.getElementById('ms_restore').textContent = restC;
+  document.getElementById('ms_out').textContent = outC;
+  // 이달 전체
+  const {newC:tn,restC:tr,outC:to} = getCounts(null);
+  document.getElementById('inp_base').value = base||'';
+  document.getElementById('disp_new').textContent = tn;
+  document.getElementById('disp_restore').textContent = tr;
+  document.getElementById('disp_out').textContent = to;
+  document.getElementById('s_base').textContent = base;
+  document.getElementById('s_cur').textContent = base+tn+tr-to;
+  updateTotals();
+}
+
+// ══════════ 일일 로드/저장 ══════════
+function loadDay() {
+  const d = allData[dk(curDate)]||{};
+  document.getElementById('taEvent').value = d.event||'';
+  document.getElementById('taMtg').value = d.mtg||'';
+  document.getElementById('taEdu').value = d.edu||'';
+  document.getElementById('taCons1').value = d.cons1||d.cons||'';
+  document.getElementById('taCons2').value = d.cons2||'';
+  document.getElementById('taCons3').value = d.cons3||'';
+  document.getElementById('mgrIn').value = d.mgrIn||'';
+  document.getElementById('mgrRe').value = d.mgrRe||'';
+  document.getElementById('mgrOut').value = d.mgrOut||'';
+  BU_LABELS.forEach((_,i) => document.getElementById('att_'+i).value = (d.att&&d.att[i])||0);
+  document.getElementById('absRows').innerHTML = '';
+  if (d.absData) d.absData.forEach(a=>addAbsRow(a.name,a.reason));
+  updateAbsBadge(); updateTotals();
+  const btn = document.getElementById('saveBtn');
+  btn.style.background = d.saved ? 'var(--teal)' : 'var(--blue)';
+  btn.textContent = d.saved ? '✅ 저장완료' : '💾 저장하기';
+}
+
+async function saveDay() {
+  const btn = document.getElementById('saveBtn');
+  btn.textContent = '저장 중...'; btn.style.background = 'var(--gray)';
+  const att = {}; BU_LABELS.forEach((_,i)=>att[i]=parseInt(document.getElementById('att_'+i).value)||0);
+  const absData = getAbsData();
+  const payload = {
+    event:document.getElementById('taEvent').value,
+    mtg:document.getElementById('taMtg').value,
+    edu:document.getElementById('taEdu').value,
+    cons1:document.getElementById('taCons1').value,
+    cons2:document.getElementById('taCons2').value,
+    cons3:document.getElementById('taCons3').value,
+    mgrIn:document.getElementById('mgrIn').value,
+    mgrRe:document.getElementById('mgrRe').value,
+    mgrOut:document.getElementById('mgrOut').value,
+    att, absData, saved:true, savedAt:new Date().toISOString()
+  };
+  if (isOnline && fbRef) {
+    await fbRef.child('days').child(dk(curDate)).set(payload);
+    // 이달 base 없으면 전달 총원 자동 이월
+    const mkey = mk(curDate);
+    if (!monthData[mkey] || !monthData[mkey].base) {
+      const [y,m2] = mkey.split('-').map(Number);
+      const prevMk2 = new Date(y,m2-2,1);
+      const prevKey = prevMk2.getFullYear()+'-'+String(prevMk2.getMonth()+1).padStart(2,'0');
+      const prevTotal = calcTotal(prevKey, null);
+      if (prevTotal > 0) {
+        await fbRef.child('months').child(mkey).child('base').set(prevTotal);
+        showToast('🔄 전달 총원 자동 이월 ('+prevTotal+'명)');
+      }
+    }
+    // 알림 전송
+    await fbRef.child('notifs').push({
+      title:'📝 업무일지 저장됨',
+      body:dk(curDate)+' 일지가 저장되었습니다.',
+      time:new Date().toISOString(),
+      sender:MY_ID
+    });
+    allData[dk(curDate)] = payload;
+    btn.style.background = 'var(--teal)'; btn.textContent = '✅ 저장완료';
+    showToast('✅ Firebase에 저장 완료!');
+  } else {
+    allData[dk(curDate)] = payload;
+    btn.style.background = 'var(--teal)'; btn.textContent = '✅ 로컬저장';
+    showToast('📱 오프라인 — 로컬 저장됨');
+  }
+  updateMonthStrip(); renderCal();
+}
+
+async function saveMonthSetup() {
+  const mkey = mk(curDate);
+  const bv = document.getElementById('inp_base').value;
+  if (bv !== '' && isOnline && fbRef) {
+    await fbRef.child('months').child(mkey).child('base').set(parseInt(bv)||0);
+  }
+  showToast('📊 기준총원 저장 완료!');
+}
+
+async function saveMonthNote() {
+  const mkey = mk(curDate);
+  const note = document.getElementById('taMonthNote').value;
+  if (isOnline && fbRef) await fbRef.child('months').child(mkey).child('note').set(note);
+  showToast('✅ 특이사항 저장 완료');
+}
+
+// ══════════ 결석 ══════════
+function addAbsRow(name='',reason='') {
+  const row = document.createElement('div'); row.className='abs-row';
+  row.innerHTML=`<input class="abs-inp" placeholder="이름" value="${name}"><input class="abs-inp" placeholder="사유" value="${reason}"><button class="abs-del" onclick="this.parentElement.remove();updateAbsBadge()">×</button>`;
+  document.getElementById('absRows').appendChild(row); updateAbsBadge();
+}
+function updateAbsBadge() {
+  const c = document.getElementById('absRows').querySelectorAll('.abs-row').length;
+  document.getElementById('absBadge').textContent = c+'명';
+}
+function getAbsData() {
+  const rows = document.getElementById('absRows').querySelectorAll('.abs-row'); const arr=[];
+  rows.forEach(r=>{const ins=r.querySelectorAll('input');if(ins[0].value.trim())arr.push({name:ins[0].value.trim(),reason:ins[1].value.trim()});});
+  return arr;
+}
+
+// ══════════ 뷰 전환 ══════════
+function showView(name) {
+  ['daily','monthly','vehicle','guide'].forEach(v=>document.getElementById('view'+v.charAt(0).toUpperCase()+v.slice(1)).classList.remove('on'));
+  for(let i=0;i<5;i++) document.getElementById('bni'+i).classList.remove('on');
+  const map={daily:[0,'viewDaily'],monthly:[1,'viewMonthly'],vehicle:[2,'viewVehicle'],guide:[4,'viewGuide']};
+  if(map[name]){
+    document.getElementById(map[name][1]).classList.add('on');
+    document.getElementById('bni'+map[name][0]).classList.add('on');
+  }
+  if(name==='monthly') updateMonthlyView();
+  if(name==='vehicle') initVehicleView();
+}
+
+// ══════════ 월별 결산 ══════════
+function updateMonthlyView() {
+  const mkey = mk(curDate);
+  document.getElementById('settleTitle').textContent=(curDate.getMonth()+1)+'월 결산';
+  const {newC,restC,outC} = getCounts(null);
+  const base = getBase(mkey);
+  document.getElementById('s_new').textContent=newC+'명';
+  document.getElementById('s_restore').textContent=restC+'명';
+  document.getElementById('s_out').textContent=outC+'명';
+  document.getElementById('s_base').textContent=base;
+  document.getElementById('s_cur').textContent=base+newC+restC-outC;
+  // 명단
+  let newNames=[]; Object.keys(allData).filter(k=>k.startsWith(mkey)).sort().forEach(k=>{const d=allData[k]||{};if(d.mgrIn)newNames=newNames.concat(d.mgrIn.split(',').map(n=>n.trim()).filter(n=>n).map(n=>'('+k.slice(5)+') '+n));});
+  document.getElementById('monthly_new_list').innerHTML=newNames.length?newNames.join('<br>'):'<span style="color:var(--gray);font-size:12px;">없음</span>';
+  let reNames=[]; Object.keys(allData).filter(k=>k.startsWith(mkey)).sort().forEach(k=>{const d=allData[k]||{};if(d.mgrRe)reNames=reNames.concat(d.mgrRe.split(',').map(n=>n.trim()).filter(n=>n).map(n=>'('+k.slice(5)+') '+n));});
+  document.getElementById('monthly_restore_list').innerHTML=reNames.length?reNames.join('<br>'):'<span style="color:var(--gray);font-size:12px;">없음</span>';
+  let outHTML=''; Object.keys(allData).filter(k=>k.startsWith(mkey)).sort().forEach(k=>{const d=allData[k]||{};if(d.mgrOut)d.mgrOut.split(',').map(n=>n.trim()).filter(n=>n).forEach(n=>{outHTML+=`<div style="padding:6px 13px;border-bottom:1px solid var(--border);font-size:13px;">${n}</div>`;});});
+  document.getElementById('monthly_out_list').innerHTML=outHTML||'<div style="padding:10px 13px;font-size:12px;color:var(--gray);">없음</div>';
+  document.getElementById('taMonthNote').value=(monthData[mkey]||{}).note||'';
+}
+
+// ══════════ 차량운행 ══════════
+function getDefaultSchedule() {
+  return ['2:30부','3:30부','4:30부','5:40부','7:00부'].map(t=>({time:t,courses:[]}));
+}
+
+function initVehicleView() {
+  document.getElementById('vehDateLbl').textContent=(curDate.getMonth()+1)+'월 '+curDate.getDate()+'일';
+  document.getElementById('vehScheduleLbl').textContent=(curDate.getMonth()+1)+'월 '+curDate.getDate()+'일 운행표';
+  const d = allData[dk(curDate)]||{};
+  document.getElementById('taVehChange').value = d.vehChange||'';
+  renderVeh();
+}
+
+function renderVeh() {
+  [1,2].forEach(car=>{
+    const periods = vehSchedule[car]||[];
+    const el = document.getElementById('veh'+car+'_routes');
+    const col = car===1?'var(--blue)':'var(--teal)';
+    const colLt = car===1?'var(--sky)':'var(--teal-lt)';
+    if(!periods.length){el.innerHTML='<div style="padding:14px 13px;font-size:13px;color:var(--gray);">등록된 운행 없음</div>';return;}
+    el.innerHTML=periods.map((p,pi)=>{
+      const courses=p.courses||[];
+      const courseHTML=courses.length?courses.map(c=>`<div class="veh-course-row"><div class="veh-course-time" style="color:${col};background:${colLt};">${c.time||''}</div><div class="veh-course-info"><div style="font-size:13px;font-weight:600;">${c.place||'<span style="color:var(--gray);font-size:12px;">장소 미입력</span>'}</div>${c.riders?`<div style="font-size:11px;color:var(--text2);">👦 ${c.riders}</div>`:''}</div></div>`).join(''):'<div style="padding:10px 13px;font-size:12px;color:var(--gray);border-top:1px solid var(--border);">코스 없음</div>';
+      return `<div style="border-bottom:2px solid var(--border);"><div onclick="togglePeriod(${car},${pi})" style="display:flex;align-items:center;justify-content:space-between;padding:10px 13px;background:${colLt};cursor:pointer;"><span style="font-size:13px;font-weight:700;color:${col};">🕐 ${p.time}</span><div style="display:flex;align-items:center;gap:8px;"><span style="font-size:11px;color:${col};">${courses.length}코스</span><span id="ptog_${car}_${pi}" style="color:${col};">▶</span></div></div><div id="pbody_${car}_${pi}" style="display:none;">${courseHTML}</div></div>`;
+    }).join('');
+  });
+}
+
+function togglePeriod(car,pi){const b=document.getElementById('pbody_'+car+'_'+pi),t=document.getElementById('ptog_'+car+'_'+pi),open=b.style.display==='none';b.style.display=open?'block':'none';t.textContent=open?'▼':'▶';}
+function toggleVeh(car){const b=document.getElementById('veh'+car+'_body'),t=document.getElementById('veh'+car+'_tog'),open=b.style.display==='none';b.style.display=open?'block':'none';t.textContent=open?'▼':'▶';}
+
+let vehModalMode='periods';
+function showVehEdit(car) {
+  vehEditCar=car; vehEditPeriod=-1; vehModalMode='periods';
+  document.getElementById('vehModalTitle').textContent='🚌 '+car+'호차 운행표 수정';
+  document.getElementById('vehModalBtn1').textContent='Firebase에 저장';
+  renderVehModalPeriods();
+  document.getElementById('vehModal').classList.remove('hidden');
+}
+
+function renderVehModalPeriods() {
+  const periods=vehSchedule[vehEditCar]||[];
+  const col=vehEditCar===1?'var(--blue)':'var(--teal)';
+  const colLt=vehEditCar===1?'var(--sky)':'var(--teal-lt)';
+  document.getElementById('vehModalBody').innerHTML=`<div style="font-size:12px;color:var(--gray);margin-bottom:8px;">시간대를 탭하면 코스를 편집할 수 있어요</div>${periods.map((p,pi)=>`<div onclick="editVehPeriod(${pi})" style="display:flex;align-items:center;justify-content:space-between;background:${colLt};border:1.5px solid ${col};border-radius:9px;padding:10px 13px;margin-bottom:8px;cursor:pointer;"><span style="font-size:13px;font-weight:700;color:${col};">🕐 ${p.time}</span><div style="display:flex;align-items:center;gap:8px;"><span style="font-size:11px;color:${col};">${(p.courses||[]).length}코스</span><span>✏️</span><button onclick="event.stopPropagation();delVehPeriod(${pi})" style="background:var(--red-lt);border:none;border-radius:6px;width:26px;height:26px;color:var(--red);font-size:14px;cursor:pointer;">×</button></div></div>`).join('')}<button onclick="addVehPeriod()" style="width:100%;background:var(--sky);border:1.5px dashed var(--blue);color:var(--blue);border-radius:8px;padding:9px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;">＋ 시간대 추가</button>`;
+}
+
+function editVehPeriod(pi) {
+  vehEditPeriod=pi; vehModalMode='courses';
+  const p=vehSchedule[vehEditCar][pi];
+  const courses=p.courses||[];
+  document.getElementById('vehModalBtn1').textContent='✅ 코스 저장';
+  document.getElementById('vehModalBody').innerHTML=`<div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;"><button onclick="backToVehPeriods()" style="background:var(--bg);border:1px solid var(--border);border-radius:7px;padding:5px 10px;font-size:12px;cursor:pointer;font-family:inherit;">← 뒤로</button><span style="font-size:14px;font-weight:700;color:var(--navy);">🕐 ${p.time} 코스 편집</span></div><div id="courseRows">${courses.map((c,ci)=>courseRowHTML(ci,c.time||'',c.place||'',c.riders||'')).join('')}</div><button onclick="addCourseRow()" style="width:100%;background:var(--sky);border:1.5px dashed var(--blue);color:var(--blue);border-radius:8px;padding:9px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;margin-top:6px;">＋ 코스 추가</button>`;
+}
+
+function courseRowHTML(ci,t,place,riders){return `<div id="crow_${ci}" style="border:1px solid var(--border);border-radius:8px;padding:10px;margin-bottom:8px;background:#FAFCFF;"><div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:5px;"><span style="font-size:11px;font-weight:700;color:var(--gray);">코스 ${ci+1}</span><button onclick="delCourseRow(${ci})" style="background:var(--red-lt);border:none;border-radius:6px;width:24px;height:24px;color:var(--red);font-size:13px;cursor:pointer;">×</button></div><input id="ct_${ci}" value="${t}" placeholder="출발시간 (예: 1:40, 돌봄(다정반))" style="width:100%;border:1.5px solid var(--border);border-radius:6px;padding:6px 8px;font-size:12px;font-family:inherit;margin-bottom:5px;"><input id="cp_${ci}" value="${place}" placeholder="장소 (예: 진잠초)" style="width:100%;border:1.5px solid var(--border);border-radius:6px;padding:6px 8px;font-size:12px;font-family:inherit;margin-bottom:5px;"><input id="cr_${ci}" value="${riders}" placeholder="탑승 인원 (예: 홍길동, 김철수)" style="width:100%;border:1.5px solid var(--border);border-radius:6px;padding:6px 8px;font-size:12px;font-family:inherit;"></div>`;}
+
+function addCourseRow(){const w=document.getElementById('courseRows');const ci=w.querySelectorAll('[id^="crow_"]').length;w.insertAdjacentHTML('beforeend',courseRowHTML(ci,'','',''));}
+function delCourseRow(ci){const e=document.getElementById('crow_'+ci);if(e)e.remove();}
+function addVehPeriod(){const name=prompt('새 시간대 이름 (예: 2:30부)');if(!name)return;vehSchedule[vehEditCar].push({time:name.trim(),courses:[]});renderVehModalPeriods();}
+function delVehPeriod(pi){if(!confirm('삭제할까요?'))return;vehSchedule[vehEditCar].splice(pi,1);renderVehModalPeriods();}
+function backToVehPeriods(){vehEditPeriod=-1;vehModalMode='periods';document.getElementById('vehModalBtn1').textContent='Firebase에 저장';renderVehModalPeriods();}
+
+async function vehModalAction() {
+  if(vehModalMode==='courses'){
+    const rows=document.getElementById('courseRows').querySelectorAll('[id^="crow_"]');
+    const courses=[];
+    rows.forEach((row,i)=>{const t=document.getElementById('ct_'+i)?.value.trim()||'';const p=document.getElementById('cp_'+i)?.value.trim()||'';const r=document.getElementById('cr_'+i)?.value.trim()||'';courses.push({time:t,place:p,riders:r});});
+    vehSchedule[vehEditCar][vehEditPeriod].courses=courses;
+    backToVehPeriods(); showToast('✅ 코스 저장됨');
+  } else {
+    if(isOnline&&fbRef) await fbRef.child('vehicle').child('car'+vehEditCar).set(vehSchedule[vehEditCar]);
+    closeVehModal(); renderVeh(); showToast('✅ '+vehEditCar+'호차 운행표 저장!');
+  }
+}
+
+function closeVehModal(){document.getElementById('vehModal').classList.add('hidden');}
+
+async function saveVehChange(){
+  const val=document.getElementById('taVehChange').value;
+  if(isOnline&&fbRef) await fbRef.child('days').child(dk(curDate)).child('vehChange').set(val);
+  showToast('✅ 변경사항 저장!');
+}
+
+// ══════════ 알림 ══════════
+function addNotif(n) {
+  notifications.unshift(n); unreadCnt++;
+  document.getElementById('notifBadge').textContent=unreadCnt;
+  renderNotifList();
+}
+function renderNotifList() {
+  const el=document.getElementById('notifList');
+  if(!notifications.length){el.innerHTML='<div class="notif-empty">📭 알림이 없습니다</div>';return;}
+  el.innerHTML=notifications.map(n=>`<div class="notif-item unread"><div class="notif-item-title">${n.title||''}</div><div class="notif-item-body">${n.body||''}</div><div class="notif-item-time">${n.time?new Date(n.time).toLocaleString('ko-KR'):''}</div></div>`).join('');
+}
+function toggleNotif(){document.getElementById('notifPanel').classList.toggle('open');document.getElementById('notifOverlay').classList.toggle('open');}
+async function clearNotifs(){if(isOnline&&fbRef)await fbRef.child('notifs').remove();notifications=[];unreadCnt=0;document.getElementById('notifBadge').textContent=0;renderNotifList();toggleNotif();}
+
+// ══════════ 유틸 ══════════
+function showToast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2500);}
+
+// ══════════ 시작 ══════════
+document.addEventListener('DOMContentLoaded', function() {
+  // PIN이 없으면 설정 안내
+  if (!getPin()) {
+    document.getElementById('pinLabel').textContent = '새 비밀번호 4자리를 설정하세요';
+  }
+});
+</script>
+</body>
+</html>
